@@ -1,0 +1,77 @@
+﻿<Window x:Class="BltFileTransfer.MainWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        xmlns:local="clr-namespace:BltFileTransfer"
+        mc:Ignorable="d"
+        Title="BltFileTransfer" Height="600" Width="400">
+    <DockPanel>
+        <Border DockPanel.Dock="Top">
+            <Grid>
+                <Grid.RowDefinitions>
+                    <RowDefinition></RowDefinition>
+                    <RowDefinition></RowDefinition>
+                    <RowDefinition></RowDefinition>
+                    <RowDefinition></RowDefinition>
+                </Grid.RowDefinitions>
+                <Border Background="SkyBlue" Grid.Row="0" Height="40">
+                    <Label VerticalAlignment="Center" Foreground="White" FontSize="15">Serial Port Send</Label>
+                </Border>
+                <Grid Grid.Row="1" Margin="5">
+                    <Grid.RowDefinitions>
+                        <RowDefinition></RowDefinition>
+                        <RowDefinition></RowDefinition>
+                    </Grid.RowDefinitions>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="100"></ColumnDefinition>
+                        <ColumnDefinition></ColumnDefinition>
+                    </Grid.ColumnDefinitions>
+                    <Label Grid.Row="0" Grid.Column="0" HorizontalAlignment="Right">Port</Label>
+                    <Label Grid.Row="1" Grid.Column="0" HorizontalAlignment="Right">Datarate</Label>
+                    <ComboBox Grid.Row="0" Grid.Column="1" Margin="5" x:Name="ComboTxtPortName"></ComboBox>
+                    <ComboBox Grid.Row="1" Grid.Column="1" Margin="5" x:Name="ComboTxtBaudRate"></ComboBox>
+                </Grid>
+                <Border Grid.Row="2">
+                    <Button Height="30" Background="White" Margin="5" x:Name="BtnConnect" Click="BtnConnect_Click">Select File and Send</Button>
+                </Border>
+                <ProgressBar Grid.Row="3" Height="10" x:Name="Progress"></ProgressBar>
+            </Grid>
+
+        </Border>
+        <Border DockPanel.Dock="Bottom">
+            <Grid>
+                <Grid.RowDefinitions>
+                    <RowDefinition></RowDefinition>
+                    <RowDefinition></RowDefinition>
+                    <RowDefinition></RowDefinition>
+                </Grid.RowDefinitions>
+                <Border Background="SkyBlue" Grid.Row="0" Height="40">
+                    <Label VerticalAlignment="Center" Foreground="White" FontSize="15">Serial Port Receive</Label>
+                </Border>
+                <Grid Grid.Row="1" Margin="5">
+                    <Grid.RowDefinitions>
+                        <RowDefinition></RowDefinition>
+                        <RowDefinition></RowDefinition>
+                    </Grid.RowDefinitions>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="100"></ColumnDefinition>
+                        <ColumnDefinition></ColumnDefinition>
+                    </Grid.ColumnDefinitions>
+                    <Label Grid.Row="0" Grid.Column="0" HorizontalAlignment="Right">Port</Label>
+                    <Label Grid.Row="1" Grid.Column="0" HorizontalAlignment="Right">Datarate</Label>
+                    <ComboBox Grid.Row="0" Grid.Column="1" Margin="5" x:Name="ComboTxtPortName_R"></ComboBox>
+                    <ComboBox Grid.Row="1" Grid.Column="1" Margin="5" x:Name="ComboTxtBaudRate_R"></ComboBox>
+                </Grid>
+                <Border Grid.Row="2">
+                    <Button Height="30" Background="White" Margin="5,5,5,0" x:Name="BtnReceieve" Click="BtnReceieve_Click" VerticalAlignment="Top">Receieve</Button>
+                </Border>
+
+            </Grid>
+
+        </Border>
+        <Border Background="Black">
+            <TextBox x:Name="Log" Foreground="White" Background="Black"></TextBox>
+        </Border>
+    </DockPanel>
+</Window>
