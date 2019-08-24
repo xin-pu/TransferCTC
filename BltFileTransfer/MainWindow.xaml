@@ -5,7 +5,7 @@
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         xmlns:local="clr-namespace:BltFileTransfer"
         mc:Ignorable="d"
-        Title="BltFileTransfer" Height="600" Width="400">
+        Title="BltFileTransfer" Height="500" Width="500">
     <DockPanel>
         <Border DockPanel.Dock="Top">
             <Grid>
