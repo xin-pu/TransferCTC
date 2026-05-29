@@ -1,188 +1,271 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
+using System.Threading;
 using System.Threading.Tasks;
 using System.Windows;
 using System.IO.Ports;
 using Microsoft.Win32;
-using System.IO;
-using System.Security.Cryptography;
-using System.Text;
-using System.Threading;
+using System.Windows.Forms;
+using BltFileTransfer.Transfer;
 
 namespace BltFileTransfer
 {
-    /// <summary>
-    /// MainWindow.xaml 的交互逻辑
-    /// </summary>
     public partial class MainWindow : Window
     {
-
+        private readonly SerialTransferSender _sender = new SerialTransferSender();
+        private readonly SerialTransferReceiver _receiver = new SerialTransferReceiver();
+        private CancellationTokenSource _sendCts;
+        private bool _isSending;
+        private int _lastLoggedSendPercent = -1;
+        private int _lastLoggedReceivePercent = -1;
 
         public MainWindow()
         {
             InitializeComponent();
             InitialPortName();
-            InitialAction();
-
-          
+            WireReceiverEvents();
+            AppendLog("程序已启动。");
         }
 
-        public DateTime DatetimeRead=DateTime.Now;
-        public string FileName = "";
+        private void WireReceiverEvents()
+        {
+            _receiver.Message += msg => RunOnUi(() => AppendLog(msg));
+            _receiver.ProgressChanged += p => RunOnUi(() =>
+            {
+                ProgressReceive.Value = p;
+                LogProgress(ref _lastLoggedReceivePercent, p, "接收");
+            });
+            _receiver.FileCompleted += path => RunOnUi(() => AppendLog("接收成功: " + path));
+            _receiver.FileFailed += (name, reason) => RunOnUi(() => AppendLog("接收失败 [" + name + "]: " + reason));
+        }
 
         private void InitialPortName()
         {
-            var PortNames = SerialPort.GetPortNames().ToList();
-            ComboTxtPortName.ItemsSource = PortNames;
-            ComboTxtPortName_R.ItemsSource = PortNames;
+            RefreshPortLists();
 
-            var baudRateList = new List<int>() { 9600,115200, 960000 };
+            var baudRateList = new List<int> { 9600, 115200, 921600 };
             ComboTxtBaudRate.ItemsSource = baudRateList;
             ComboTxtBaudRate_R.ItemsSource = baudRateList;
             ComboTxtBaudRate.SelectedIndex = 2;
             ComboTxtBaudRate_R.SelectedIndex = 2;
 
             Progress.Maximum = 100;
+            ProgressReceive.Maximum = 100;
+
+            var defaultDir = Path.Combine(
+                Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments),
+                "Transfer");
+            TxtSaveDirectory.Text = defaultDir;
         }
 
+        private void RefreshPortLists()
+        {
+            var portNames = SerialPort.GetPortNames().OrderBy(p => p).ToList();
+            var sendPort = ComboTxtPortName.SelectedItem as string;
+            var recvPort = ComboTxtPortName_R.SelectedItem as string;
+
+            ComboTxtPortName.ItemsSource = portNames;
+            ComboTxtPortName_R.ItemsSource = portNames;
+
+            if (!string.IsNullOrEmpty(sendPort) && portNames.Contains(sendPort))
+                ComboTxtPortName.SelectedItem = sendPort;
+            else if (portNames.Count > 0)
+                ComboTxtPortName.SelectedIndex = 0;
+
+            if (!string.IsNullOrEmpty(recvPort) && portNames.Contains(recvPort))
+                ComboTxtPortName_R.SelectedItem = recvPort;
+            else if (portNames.Count > 0)
+                ComboTxtPortName_R.SelectedIndex = 0;
+        }
+
+        private void BtnRefreshPorts_Click(object sender, RoutedEventArgs e)
+        {
+            RefreshPortLists();
+            AppendLog("已刷新串口列表。");
+        }
 
         private async void BtnConnect_Click(object sender, RoutedEventArgs e)
         {
-            var path= SelectFileName();
-            if (path.Equals(string.Empty)) return;
-            using (var port = new SerialPort(ComboTxtPortName.SelectedValue.ToString(), (int)ComboTxtBaudRate.SelectedValue))
+            if (_isSending)
             {
-                port.Open();
-                await SendTask(port,path);
-                port.Close();
+                _sender.Cancel();
+                _sendCts?.Cancel();
+                AppendLog("正在取消发送…");
+                return;
+            }
+
+            var path = SelectFileName();
+            if (string.IsNullOrEmpty(path)) return;
+
+            var portName = ComboTxtPortName.SelectedItem as string;
+            if (string.IsNullOrEmpty(portName))
+            {
+                AppendLog("请选择发送端口。");
+                return;
+            }
+
+            var baudRate = (int)ComboTxtBaudRate.SelectedItem;
+            SetSendUiBusy(true);
+            Progress.Value = 0;
+            _lastLoggedSendPercent = -1;
+            _sendCts = new CancellationTokenSource();
+
+            try
+            {
+                AppendLog("开始发送: " + Path.GetFileName(path));
+                var progress = new Progress<double>(p =>
+                {
+                    Progress.Value = p;
+                    LogProgress(ref _lastLoggedSendPercent, p, "发送");
+                });
+
+                await _sender.SendAsync(portName, baudRate, path, progress, _sendCts.Token);
+                AppendLog("发送完成。");
+            }
+            catch (OperationCanceledException)
+            {
+                AppendLog("发送已取消。");
+            }
+            catch (Exception ex)
+            {
+                AppendLog("发送失败: " + ex.Message);
+                System.Windows.MessageBox.Show(ex.Message, "发送错误", MessageBoxButton.OK, MessageBoxImage.Error);
+            }
+            finally
+            {
+                SetSendUiBusy(false);
+                _sendCts?.Dispose();
+                _sendCts = null;
             }
         }
-
-
-        private SerialPort ReveievePoer;
 
         private void BtnReceieve_Click(object sender, RoutedEventArgs e)
         {
-            if ((Application.Current.Properties["Status"] == null)|| ((bool)Application.Current.Properties["Status"] == false))
+            if (_receiver.IsReceiving)
             {
-                ReveievePoer = new SerialPort(ComboTxtPortName_R.SelectedValue.ToString(), (int)ComboTxtBaudRate_R.SelectedValue);
-                ReveievePoer.DataReceived += DataReceivedHandler;
-                ReveievePoer.ReadBufferSize = 10240;
-                ReveievePoer.ReadTimeout = 1000;
-                ReveievePoer.Open();
-                Application.Current.Properties["Status"] = true;
-
+                _receiver.Stop();
+                SetReceiveUiBusy(false);
+                return;
             }
-            else
+
+            var portName = ComboTxtPortName_R.SelectedItem as string;
+            if (string.IsNullOrEmpty(portName))
             {
-                ReveievePoer.Close();
-                ReveievePoer.Dispose();
-                Application.Current.Properties["Status"] = false; 
+                AppendLog("请选择接收端口。");
+                return;
+            }
+
+            var saveDir = TxtSaveDirectory.Text?.Trim();
+            if (string.IsNullOrEmpty(saveDir))
+            {
+                AppendLog("请选择保存目录。");
+                return;
+            }
+
+            try
+            {
+                var baudRate = (int)ComboTxtBaudRate_R.SelectedItem;
+                ProgressReceive.Value = 0;
+                _lastLoggedReceivePercent = -1;
+                _receiver.Start(portName, baudRate, saveDir);
+                SetReceiveUiBusy(true);
+            }
+            catch (Exception ex)
+            {
+                AppendLog("启动接收失败: " + ex.Message);
+                System.Windows.MessageBox.Show(ex.Message, "接收错误", MessageBoxButton.OK, MessageBoxImage.Error);
+                SetReceiveUiBusy(false);
             }
         }
 
-        private void DataReceivedHandler(object sender, SerialDataReceivedEventArgs e)
+        private void BtnBrowseSaveDir_Click(object sender, RoutedEventArgs e)
         {
-            
-            if (((DatetimeRead - DateTime.Now).TotalSeconds > 10)|| FileName=="")
+            using (var dialog = new FolderBrowserDialog())
             {
-                FileName = $"D:\\Transfer{DateTime.Now:yyyy_MM_dd_HH_mm_ss}.zip";
-               
+                dialog.Description = "选择接收文件保存目录";
+                if (Directory.Exists(TxtSaveDirectory.Text))
+                    dialog.SelectedPath = TxtSaveDirectory.Text;
+
+                if (dialog.ShowDialog() == System.Windows.Forms.DialogResult.OK)
+                    TxtSaveDirectory.Text = dialog.SelectedPath;
             }
-            DatetimeRead = DateTime.Now;
-            SerialPort sp = (SerialPort)sender;
-            var length = sp.BytesToRead;
-            byte[] a = new byte[length];
-            sp.Read(a, 0, length);
-            //var bytes=System.Text.Encoding.UTF8.GetBytes(str);
-            if (a.Length == 0) return;
-            WriteData(FileName, a);
         }
 
-        private void WriteData(string filepath, byte[] data)
+        private void Window_Closing(object sender, System.ComponentModel.CancelEventArgs e)
         {
-            FileStream fs;
-            if (File.Exists(filepath))
+            if (_isSending || _receiver.IsReceiving)
             {
-                 fs = new FileStream(filepath, FileMode.Append);
+                var result = System.Windows.MessageBox.Show(
+                    "正在传输数据，确定要退出吗？",
+                    "确认退出",
+                    MessageBoxButton.YesNo,
+                    MessageBoxImage.Question);
+                if (result != MessageBoxResult.Yes)
+                {
+                    e.Cancel = true;
+                    return;
+                }
             }
-            else
-            {
-                 fs = new FileStream(filepath, FileMode.CreateNew);
-            }
-           
-            using (BinaryWriter bw = new BinaryWriter(fs))
-            {
-                bw.Write(data, 0, data.Length);
-            }
-            fs.Close();
+
+            _sender.Cancel();
+            _sendCts?.Cancel();
+            _receiver.Stop();
+            _sender.Dispose();
+            _receiver.Dispose();
         }
 
-        private async Task SendTask(SerialPort port, string filepath)
+        private void SetSendUiBusy(bool busy)
         {
-          
-           await Task.Run(()=> {
-               using (FileStream sr = new FileStream(filepath, FileMode.Open))
-               {
-                   long fileLength = sr.Length;
-                   long fileposition = 0;
-                   sr.Position = fileposition;
-                   long leftlength = fileLength;
-                   byte[] buff;
-                   while (leftlength > 0)
-                   {
-                       Thread.Sleep(10 );
-                       if (leftlength > 10240)
-                       {
-                           buff = new byte[10240];
-                           sr.Read(buff, 0, Convert.ToInt32(10240)); 
-                           port.Write(buff, 0, 10240);
-                           leftlength = leftlength - 10240;
-                       }
-                       else
-                       {
-                           buff = new byte[leftlength];
-                           sr.Read(buff, 0, (int)leftlength);
-                           port.Write(buff, 0, (int)leftlength);
-                           leftlength = 0;
-                       }
-                       this.Dispatcher.Invoke(BindingValue, (fileLength-leftlength) * 100 / fileLength);
-                   }
-               }
-               port.Close();
-
-           });
+            _isSending = busy;
+            BtnConnect.Content = busy ? "取消发送" : "选择文件并发送";
+            ComboTxtPortName.IsEnabled = !busy;
+            ComboTxtBaudRate.IsEnabled = !busy;
+            BtnRefreshPorts.IsEnabled = !busy;
         }
-  
+
+        private void SetReceiveUiBusy(bool busy)
+        {
+            BtnReceieve.Content = busy ? "停止接收" : "开始接收";
+            ComboTxtPortName_R.IsEnabled = !busy;
+            ComboTxtBaudRate_R.IsEnabled = !busy;
+            TxtSaveDirectory.IsEnabled = !busy;
+            BtnBrowseSaveDir.IsEnabled = !busy;
+        }
+
         private string SelectFileName()
         {
-            OpenFileDialog dialog = new OpenFileDialog();
-            dialog.Filter = "压缩文件|*.zip;*.jar";
-            dialog.CheckFileExists = true;
-            dialog.ShowDialog();
-            return dialog.FileName;
+            var dialog = new Microsoft.Win32.OpenFileDialog
+            {
+                Filter = "压缩文件|*.zip;*.jar",
+                CheckFileExists = true
+            };
+            return dialog.ShowDialog() == true ? dialog.FileName : string.Empty;
         }
 
-
-        private void InitialAction()
+        private void AppendLog(string message)
         {
-            BindingValue = BindingProgressValue;
+            var line = "[" + DateTime.Now.ToString("HH:mm:ss") + "] " + message + Environment.NewLine;
+            Log.AppendText(line);
+            Log.ScrollToEnd();
         }
 
-        private Action<double> BindingValue;
-
-
-        private void BindingProgressValue(double value)
+        private void LogProgress(ref int lastLogged, double percent, string label)
         {
-            Progress.Value = value;
+            var bucket = (int)(percent / 5) * 5;
+            if (bucket <= lastLogged && percent < 100) return;
+            lastLogged = bucket;
+            if (bucket % 5 == 0 || percent >= 100)
+                AppendLog(label + "进度: " + percent.ToString("F0") + "%");
         }
 
-
-      
-   
-   
+        private void RunOnUi(Action action)
+        {
+            if (Dispatcher.CheckAccess())
+                action();
+            else
+                Dispatcher.BeginInvoke(action);
+        }
     }
-
-  
 }

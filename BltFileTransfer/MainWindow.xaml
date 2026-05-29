@@ -5,73 +5,90 @@
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         xmlns:local="clr-namespace:BltFileTransfer"
         mc:Ignorable="d"
-        Title="BltFileTransfer" Height="500" Width="500">
+        Title="BltFileTransfer" Height="560" Width="520"
+        Closing="Window_Closing">
     <DockPanel>
         <Border DockPanel.Dock="Top">
             <Grid>
                 <Grid.RowDefinitions>
-                    <RowDefinition></RowDefinition>
-                    <RowDefinition></RowDefinition>
-                    <RowDefinition></RowDefinition>
-                    <RowDefinition></RowDefinition>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="Auto"/>
                 </Grid.RowDefinitions>
                 <Border Background="SkyBlue" Grid.Row="0" Height="40">
                     <Label VerticalAlignment="Center" Foreground="White" FontSize="15">Serial Port Send</Label>
                 </Border>
                 <Grid Grid.Row="1" Margin="5">
                     <Grid.RowDefinitions>
-                        <RowDefinition></RowDefinition>
-                        <RowDefinition></RowDefinition>
+                        <RowDefinition/>
+                        <RowDefinition/>
                     </Grid.RowDefinitions>
                     <Grid.ColumnDefinitions>
-                        <ColumnDefinition Width="100"></ColumnDefinition>
-                        <ColumnDefinition></ColumnDefinition>
+                        <ColumnDefinition Width="100"/>
+                        <ColumnDefinition/>
+                        <ColumnDefinition Width="70"/>
                     </Grid.ColumnDefinitions>
                     <Label Grid.Row="0" Grid.Column="0" HorizontalAlignment="Right">Port</Label>
                     <Label Grid.Row="1" Grid.Column="0" HorizontalAlignment="Right">Datarate</Label>
-                    <ComboBox Grid.Row="0" Grid.Column="1" Margin="5" x:Name="ComboTxtPortName"></ComboBox>
-                    <ComboBox Grid.Row="1" Grid.Column="1" Margin="5" x:Name="ComboTxtBaudRate"></ComboBox>
+                    <ComboBox Grid.Row="0" Grid.Column="1" Margin="5" x:Name="ComboTxtPortName"/>
+                    <ComboBox Grid.Row="1" Grid.Column="1" Margin="5" x:Name="ComboTxtBaudRate"/>
+                    <Button Grid.Row="0" Grid.Column="2" Grid.RowSpan="2" Margin="5" x:Name="BtnRefreshPorts" Click="BtnRefreshPorts_Click" Content="刷新"/>
                 </Grid>
                 <Border Grid.Row="2">
-                    <Button Height="30" Background="White" Margin="5" x:Name="BtnConnect" Click="BtnConnect_Click">Select File and Send</Button>
+                    <Button Height="30" Background="White" Margin="5" x:Name="BtnConnect" Click="BtnConnect_Click">选择文件并发送</Button>
                 </Border>
-                <ProgressBar Grid.Row="3" Height="10" x:Name="Progress"></ProgressBar>
+                <ProgressBar Grid.Row="3" Height="10" Margin="5,0,5,5" x:Name="Progress" Maximum="100"/>
             </Grid>
-
         </Border>
         <Border DockPanel.Dock="Bottom">
             <Grid>
                 <Grid.RowDefinitions>
-                    <RowDefinition></RowDefinition>
-                    <RowDefinition></RowDefinition>
-                    <RowDefinition></RowDefinition>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="Auto"/>
                 </Grid.RowDefinitions>
                 <Border Background="SkyBlue" Grid.Row="0" Height="40">
                     <Label VerticalAlignment="Center" Foreground="White" FontSize="15">Serial Port Receive</Label>
                 </Border>
                 <Grid Grid.Row="1" Margin="5">
                     <Grid.RowDefinitions>
-                        <RowDefinition></RowDefinition>
-                        <RowDefinition></RowDefinition>
+                        <RowDefinition/>
+                        <RowDefinition/>
+                        <RowDefinition/>
                     </Grid.RowDefinitions>
                     <Grid.ColumnDefinitions>
-                        <ColumnDefinition Width="100"></ColumnDefinition>
-                        <ColumnDefinition></ColumnDefinition>
+                        <ColumnDefinition Width="100"/>
+                        <ColumnDefinition/>
                     </Grid.ColumnDefinitions>
                     <Label Grid.Row="0" Grid.Column="0" HorizontalAlignment="Right">Port</Label>
                     <Label Grid.Row="1" Grid.Column="0" HorizontalAlignment="Right">Datarate</Label>
-                    <ComboBox Grid.Row="0" Grid.Column="1" Margin="5" x:Name="ComboTxtPortName_R"></ComboBox>
-                    <ComboBox Grid.Row="1" Grid.Column="1" Margin="5" x:Name="ComboTxtBaudRate_R"></ComboBox>
+                    <Label Grid.Row="2" Grid.Column="0" HorizontalAlignment="Right">保存目录</Label>
+                    <ComboBox Grid.Row="0" Grid.Column="1" Margin="5" x:Name="ComboTxtPortName_R"/>
+                    <ComboBox Grid.Row="1" Grid.Column="1" Margin="5" x:Name="ComboTxtBaudRate_R"/>
+                    <Grid Grid.Row="2" Grid.Column="1" Margin="5">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition/>
+                            <ColumnDefinition Width="60"/>
+                        </Grid.ColumnDefinitions>
+                        <TextBox x:Name="TxtSaveDirectory" Grid.Column="0" VerticalContentAlignment="Center"/>
+                        <Button Grid.Column="1" Margin="5,0,0,0" x:Name="BtnBrowseSaveDir" Click="BtnBrowseSaveDir_Click" Content="浏览"/>
+                    </Grid>
                 </Grid>
                 <Border Grid.Row="2">
-                    <Button Height="30" Background="White" Margin="5,5,5,0" x:Name="BtnReceieve" Click="BtnReceieve_Click" VerticalAlignment="Top">Receieve</Button>
+                    <Button Height="30" Background="White" Margin="5,5,5,0" x:Name="BtnReceieve" Click="BtnReceieve_Click" VerticalAlignment="Top">开始接收</Button>
                 </Border>
-
+                <ProgressBar Grid.Row="3" Height="10" Margin="5,5,5,5" x:Name="ProgressReceive" Maximum="100"/>
             </Grid>
-
         </Border>
         <Border Background="Black">
-            <TextBox x:Name="Log" Foreground="White" Background="Black"></TextBox>
+            <ScrollViewer VerticalScrollBarVisibility="Auto">
+                <TextBox x:Name="Log" Foreground="White" Background="Black"
+                         IsReadOnly="True" TextWrapping="Wrap" BorderThickness="0"/>
+            </ScrollViewer>
         </Border>
     </DockPanel>
 </Window>
